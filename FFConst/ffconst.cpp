@@ -58,6 +58,8 @@ HRESULT SetDeviceForcesXY();
 #define FEEDBACK_WINDOW_X       20
 #define FEEDBACK_WINDOW_Y       60
 #define FEEDBACK_WINDOW_WIDTH   200
+#define MAX_FORCE				DI_FFNOMINALMAX/10
+#define EFFECT_GAIN				0
 
 LPDIRECTINPUT8          g_pDI = nullptr;
 LPDIRECTINPUTDEVICE8    g_pDevice = nullptr;
@@ -262,7 +264,7 @@ HRESULT InitDirectInput( HWND hDlg )
     eff.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
     eff.dwDuration = INFINITE;
     eff.dwSamplePeriod = 0;
-    eff.dwGain = DI_FFNOMINALMAX/100;
+    eff.dwGain = EFFECT_GAIN;
     eff.dwTriggerButton = DIEB_NOTRIGGER;
     eff.dwTriggerRepeatInterval = 0;
     eff.cAxes = g_dwNumForceFeedbackAxis;
@@ -407,12 +409,12 @@ VOID OnPaint( HWND hDlg )
     hbrOld = SelectBrush( hDC, hbrBlack );
 
     x = MulDiv( FEEDBACK_WINDOW_WIDTH,
-                g_nXForce + DI_FFNOMINALMAX,
-                2 * DI_FFNOMINALMAX );
+                g_nXForce + MAX_FORCE,
+                2 * MAX_FORCE );
 
     y = MulDiv( FEEDBACK_WINDOW_WIDTH,
-                g_nYForce + DI_FFNOMINALMAX,
-                2 * DI_FFNOMINALMAX );
+                g_nYForce + MAX_FORCE,
+                2 * MAX_FORCE );
 
     x += FEEDBACK_WINDOW_X;
     y += FEEDBACK_WINDOW_Y;
@@ -505,20 +507,19 @@ VOID OnLeftButtonUp( HWND hDlg, INT x, INT y, UINT keyFlags )
 //-----------------------------------------------------------------------------
 // Name: CoordToForce()
 // Desc: Convert a coordinate 0 <= nCoord <= FEEDBACK_WINDOW_WIDTH 
-//       to a force value in the range -DI_FFNOMINALMAX to +DI_FFNOMINALMAX.
+//       to a force value in the range -MAX_FORCE to +MAX_FORCE.
 //-----------------------------------------------------------------------------
 INT CoordToForce( INT nCoord )
 {
-	INT MaxForce = DI_FFNOMINALMAX;
-    INT nForce = MulDiv( nCoord, 2 * MaxForce, FEEDBACK_WINDOW_WIDTH )
-        - MaxForce;
+    INT nForce = MulDiv( nCoord, 2 * MAX_FORCE, FEEDBACK_WINDOW_WIDTH )
+        - MAX_FORCE;
 
     // Keep force within bounds
-    if( nForce < -MaxForce)
-        nForce = -MaxForce;
+    if( nForce < -MAX_FORCE)
+        nForce = -MAX_FORCE;
 
-    if( nForce > +MaxForce)
-        nForce = +MaxForce;
+    if( nForce > +MAX_FORCE)
+        nForce = +MAX_FORCE;
 
     return nForce;
 }
@@ -542,13 +543,13 @@ HRESULT SetDeviceForcesXY()
     {
         // If only one force feedback axis, then apply only one direction and 
         // keep the direction at zero
-        cf.lMagnitude = g_nXForce;
+        cf.lMagnitude = -g_nXForce;
         rglDirection[0] = 0;
     }
     else
     {
         // If two force feedback axis, then apply magnitude from both directions 
-        rglDirection[0] = g_nXForce;
+        rglDirection[0] = -g_nXForce;
         rglDirection[1] = g_nYForce;
         cf.lMagnitude = ( DWORD )sqrt( ( double )g_nXForce * ( double )g_nXForce +
                                        ( double )g_nYForce * ( double )g_nYForce );
