@@ -262,7 +262,7 @@ HRESULT InitDirectInput( HWND hDlg )
     eff.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTOFFSETS;
     eff.dwDuration = INFINITE;
     eff.dwSamplePeriod = 0;
-    eff.dwGain = DI_FFNOMINALMAX;
+    eff.dwGain = DI_FFNOMINALMAX/100;
     eff.dwTriggerButton = DIEB_NOTRIGGER;
     eff.dwTriggerRepeatInterval = 0;
     eff.cAxes = g_dwNumForceFeedbackAxis;
@@ -509,15 +509,16 @@ VOID OnLeftButtonUp( HWND hDlg, INT x, INT y, UINT keyFlags )
 //-----------------------------------------------------------------------------
 INT CoordToForce( INT nCoord )
 {
-    INT nForce = MulDiv( nCoord, 2 * DI_FFNOMINALMAX, FEEDBACK_WINDOW_WIDTH )
-        - DI_FFNOMINALMAX;
+	INT MaxForce = DI_FFNOMINALMAX;
+    INT nForce = MulDiv( nCoord, 2 * MaxForce, FEEDBACK_WINDOW_WIDTH )
+        - MaxForce;
 
     // Keep force within bounds
-    if( nForce < -DI_FFNOMINALMAX )
-        nForce = -DI_FFNOMINALMAX;
+    if( nForce < -MaxForce)
+        nForce = -MaxForce;
 
-    if( nForce > +DI_FFNOMINALMAX )
-        nForce = +DI_FFNOMINALMAX;
+    if( nForce > +MaxForce)
+        nForce = +MaxForce;
 
     return nForce;
 }
