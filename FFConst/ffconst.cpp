@@ -58,8 +58,8 @@ HRESULT SetDeviceForcesXY();
 #define FEEDBACK_WINDOW_X       20
 #define FEEDBACK_WINDOW_Y       60
 #define FEEDBACK_WINDOW_WIDTH   200
-#define MAX_FORCE				DI_FFNOMINALMAX/10
-#define EFFECT_GAIN				0
+#define MAX_FORCE				DI_FFNOMINALMAX
+#define EFFECT_GAIN				DI_FFNOMINALMAX
 
 LPDIRECTINPUT8          g_pDI = nullptr;
 LPDIRECTINPUTDEVICE8    g_pDevice = nullptr;
@@ -250,13 +250,22 @@ HRESULT InitDirectInput( HWND hDlg )
         return hr;
 
     // This simple sample only supports one or two axis joysticks
-    if( g_dwNumForceFeedbackAxis > 2 )
-        g_dwNumForceFeedbackAxis = 2;
+    if( g_dwNumForceFeedbackAxis > 1 )
+        g_dwNumForceFeedbackAxis = 1;
 
     // This application needs only one effect: Applying raw forces.
     DWORD rgdwAxes[2] = { DIJOFS_X, DIJOFS_Y };
     LONG rglDirection[2] = { 0, 0 };
     DICONSTANTFORCE cf = { 0 };
+	DICONDITION cond;
+	cond.lOffset = 0;
+	cond.lPositiveCoefficient = 5000;
+	cond.lNegativeCoefficient = 5000;
+	cond.dwPositiveSaturation = 10000;
+	cond.dwNegativeSaturation = 10000;
+	//cond.lDeadBand = 100;
+
+
 
     DIEFFECT eff;
     ZeroMemory( &eff, sizeof( eff ) );
@@ -271,12 +280,14 @@ HRESULT InitDirectInput( HWND hDlg )
     eff.rgdwAxes = rgdwAxes;
     eff.rglDirection = rglDirection;
     eff.lpEnvelope = 0;
-    eff.cbTypeSpecificParams = sizeof( DICONSTANTFORCE );
-    eff.lpvTypeSpecificParams = &cf;
+    eff.cbTypeSpecificParams = sizeof(DICONDITION);
+    eff.lpvTypeSpecificParams = &cond;
     eff.dwStartDelay = 0;
 
     // Create the prepared effect
-    if( FAILED( hr = g_pDevice->CreateEffect( GUID_ConstantForce,
+    //if( FAILED( hr = g_pDevice->CreateEffect( GUID_ConstantForce,
+    //                                          &eff, &g_pEffect, nullptr ) ) )
+    if( FAILED( hr = g_pDevice->CreateEffect( GUID_Spring,
                                               &eff, &g_pEffect, nullptr ) ) )
     {
         return hr;
@@ -538,12 +549,20 @@ HRESULT SetDeviceForcesXY()
     LONG rglDirection[2] = { 0, 0 };
 
     DICONSTANTFORCE cf;
+	DICONDITION cond;
+	cond.lOffset = 0;
+	cond.lPositiveCoefficient = 5000;
+	cond.lNegativeCoefficient = 5000;
+	cond.dwPositiveSaturation = 10000;
+	cond.dwNegativeSaturation = 10000;
+	//cond.lDeadBand = 100;
 
     if( g_dwNumForceFeedbackAxis == 1 )
     {
         // If only one force feedback axis, then apply only one direction and 
         // keep the direction at zero
         cf.lMagnitude = -g_nXForce;
+	cond.lOffset = g_nXForce;
         rglDirection[0] = 0;
     }
     else
@@ -562,8 +581,8 @@ HRESULT SetDeviceForcesXY()
     eff.cAxes = g_dwNumForceFeedbackAxis;
     eff.rglDirection = rglDirection;
     eff.lpEnvelope = 0;
-    eff.cbTypeSpecificParams = sizeof( DICONSTANTFORCE );
-    eff.lpvTypeSpecificParams = &cf;
+    eff.cbTypeSpecificParams = sizeof(DICONDITION);
+    eff.lpvTypeSpecificParams = &cond;
     eff.dwStartDelay = 0;
 
     // Now set the new parameters and start the effect immediately.
