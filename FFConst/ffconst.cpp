@@ -259,8 +259,8 @@ HRESULT InitDirectInput( HWND hDlg )
     DICONSTANTFORCE cf = { 0 };
 	DICONDITION cond;
 	cond.lOffset = 0;
-	cond.lPositiveCoefficient = 5000;
-	cond.lNegativeCoefficient = 5000;
+	cond.lPositiveCoefficient = 9000;
+	cond.lNegativeCoefficient = 9000;
 	cond.dwPositiveSaturation = 10000;
 	cond.dwNegativeSaturation = 10000;
 	//cond.lDeadBand = 100;
@@ -287,7 +287,7 @@ HRESULT InitDirectInput( HWND hDlg )
     // Create the prepared effect
     //if( FAILED( hr = g_pDevice->CreateEffect( GUID_ConstantForce,
     //                                          &eff, &g_pEffect, nullptr ) ) )
-    if( FAILED( hr = g_pDevice->CreateEffect( GUID_Spring,
+    if( FAILED( hr = g_pDevice->CreateEffect( GUID_Friction,
                                               &eff, &g_pEffect, nullptr ) ) )
     {
         return hr;
@@ -551,8 +551,8 @@ HRESULT SetDeviceForcesXY()
     DICONSTANTFORCE cf;
 	DICONDITION cond;
 	cond.lOffset = 0;
-	cond.lPositiveCoefficient = 5000;
-	cond.lNegativeCoefficient = 5000;
+	cond.lPositiveCoefficient = 9000;
+	cond.lNegativeCoefficient = 9000;
 	cond.dwPositiveSaturation = 10000;
 	cond.dwNegativeSaturation = 10000;
 	//cond.lDeadBand = 100;
