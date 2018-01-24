@@ -58,8 +58,8 @@ HRESULT SetDeviceForcesXY();
 #define FEEDBACK_WINDOW_X       20
 #define FEEDBACK_WINDOW_Y       60
 #define FEEDBACK_WINDOW_WIDTH   200
-#define MAX_FORCE				DI_FFNOMINALMAX/10
-#define EFFECT_GAIN				0
+#define MAX_FORCE				DI_FFNOMINALMAX
+#define EFFECT_GAIN				DI_FFNOMINALMAX
 
 LPDIRECTINPUT8          g_pDI = nullptr;
 LPDIRECTINPUTDEVICE8    g_pDevice = nullptr;
