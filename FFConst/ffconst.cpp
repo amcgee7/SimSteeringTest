@@ -610,18 +610,18 @@ HRESULT SetDeviceForcesXY()
     // you need only specify the parameters you are modifying
     LONG rglDirection[2] = { 0, 0 };
 	INT Force = g_nXForce;
-	const float Dt = 33.3;
+	const float Dt = 10;
 	const float K = 0.01;
-	const INT MaxForce = MAX_FORCE / 2;
+	const INT MaxForce = MAX_FORCE / 3;
 
     DICONSTANTFORCE cf;
-	g_WheelChangeThreshold = 0;
+	g_WheelChangeThreshold = 3;
 	int distance = g_WheelTargetPosition - g_WheelPositon;
 	if (abs(distance) > g_WheelChangeThreshold) {
 		if (distance < 0)
-			Force = distance * ((MaxForce / 3000)) - 1900;
+			Force = distance * ((MaxForce / 3000)) - 200;
 		if (distance > 0)
-			Force = distance * ((MaxForce / 3000)) + 1900;
+			Force = distance * ((MaxForce / 3000)) + 200;
 		integral = integral + (distance * Dt);
 		float derivative = (distance - preError) / Dt;
 		//Force = (K * distance) + (K * integral)  + (K * derivative);
