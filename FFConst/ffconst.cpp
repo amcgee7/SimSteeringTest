@@ -44,10 +44,23 @@ HRESULT OnMouseMove( HWND hDlg, INT x, INT y, UINT keyFlags );
 VOID OnLeftButtonDown( HWND hDlg, INT x, INT y, UINT keyFlags );
 VOID OnLeftButtonUp( HWND hDlg, INT x, INT y, UINT keyFlags );
 INT CoordToForce( INT x );
+INT CoordToTarget(INT nCoord);
 HRESULT SetDeviceForcesXY();
+HRESULT UpdateInputState(HWND hDlg);
+
+void SetSampleTime(int NewSampleTime);
+void SetTunings(double Kp, double Ki, double Kd);
+DWORD Compute();
 
 
-
+/*working variables*/
+unsigned long lastTime;
+double Input, Setpoint;
+DWORD Output;
+double errSum, lastErr;
+double kp, ki, kd;
+int SampleTime = 1000; //1 sec
+ 
 
 //-----------------------------------------------------------------------------
 // Defines, constants, and global variables
@@ -59,6 +72,7 @@ HRESULT SetDeviceForcesXY();
 #define FEEDBACK_WINDOW_Y       60
 #define FEEDBACK_WINDOW_WIDTH   200
 #define MAX_FORCE				DI_FFNOMINALMAX
+#define MAX_LOC_VALUE			1000
 #define EFFECT_GAIN				DI_FFNOMINALMAX
 
 LPDIRECTINPUT8          g_pDI = nullptr;
@@ -67,10 +81,14 @@ LPDIRECTINPUTEFFECT     g_pEffect = nullptr;
 BOOL                    g_bActive = TRUE;
 DWORD                   g_dwNumForceFeedbackAxis = 0;
 INT                     g_nXForce;
+long					g_WheelPositon = 0;
+DWORD					g_WheelTargetPosition = 0;
+DWORD					g_WheelChangeThreshold = 3;
 INT                     g_nYForce;
 DWORD                   g_dwLastEffectSet; // Time of the previous force feedback effect set
 
 
+TCHAR g_strText[512] = { 0 }; // Device state text
 
 
 //-----------------------------------------------------------------------------
@@ -115,6 +133,9 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
 
             // Init the time of the last force feedback effect
             g_dwLastEffectSet = timeGetTime();
+			SetTimer(hDlg, 0, 1000/30, nullptr);
+			SetSampleTime(1000/30);
+			SetTunings(1, 1, 1);
             break;
 
         case WM_MOUSEMOVE:
@@ -161,6 +182,21 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
                     return FALSE; // Message not handled 
             }
             break;
+
+		case WM_TIMER:
+			// Update the input device every timer message
+			if (FAILED(UpdateInputState(hDlg)))
+			{
+				KillTimer(hDlg, 0);
+				MessageBox(nullptr, TEXT("Error Reading Input State. ") \
+					TEXT("The sample will now exit."), TEXT("DirectInput Sample"),
+					MB_ICONERROR | MB_OK);
+				EndDialog(hDlg, TRUE);
+			}
+			//_stprintf_s(g_strText, 512, TEXT("%ld"), g_count);
+			//SetWindowText(GetDlgItem(hDlg, IDC_X_AXIS), g_strText);
+			UpdateWindow(hDlg);
+			break;
 
         case WM_DESTROY:
             // Cleanup everything
@@ -220,7 +256,7 @@ HRESULT InitDirectInput( HWND hDlg )
     // IDirectInputDevice8::GetDeviceState(). Even though we won't actually do
     // it in this sample. But setting the data format is important so that the
     // DIJOFS_* values work properly.
-    if( FAILED( hr = g_pDevice->SetDataFormat( &c_dfDIJoystick ) ) )
+    if( FAILED( hr = g_pDevice->SetDataFormat( &c_dfDIJoystick2 ) ) )
         return hr;
 
     // Set the cooperative level to let DInput know how this device should
@@ -250,8 +286,8 @@ HRESULT InitDirectInput( HWND hDlg )
         return hr;
 
     // This simple sample only supports one or two axis joysticks
-    if( g_dwNumForceFeedbackAxis > 2 )
-        g_dwNumForceFeedbackAxis = 2;
+    if( g_dwNumForceFeedbackAxis > 1 )
+        g_dwNumForceFeedbackAxis = 1;
 
     // This application needs only one effect: Applying raw forces.
     DWORD rgdwAxes[2] = { DIJOFS_X, DIJOFS_Y };
@@ -304,7 +340,23 @@ BOOL CALLBACK EnumAxesCallback( const DIDEVICEOBJECTINSTANCE* pdidoi,
     if( ( pdidoi->dwFlags & DIDOI_FFACTUATOR ) != 0 )
         ( *pdwNumForceFeedbackAxis )++;
 
-    return DIENUM_CONTINUE;
+	if (pdidoi->dwType & DIDFT_AXIS)
+	{
+		DIPROPRANGE diprg;
+		diprg.diph.dwSize = sizeof(DIPROPRANGE);
+		diprg.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+		diprg.diph.dwHow = DIPH_BYID;
+		diprg.diph.dwObj = pdidoi->dwType; // Specify the enumerated axis
+		diprg.lMin = -1000;
+		diprg.lMax = +1000;
+
+		// Set the range for the axis
+		if (FAILED(g_pDevice->SetProperty(DIPROP_RANGE, &diprg.diph)))
+			return DIENUM_STOP;
+
+	}
+	
+	return DIENUM_CONTINUE;
 }
 
 
@@ -463,13 +515,11 @@ HRESULT OnMouseMove( HWND hDlg, INT x, INT y, UINT keyFlags )
         y -= FEEDBACK_WINDOW_Y;
 
         g_nXForce = CoordToForce( x );
+		g_WheelTargetPosition = CoordToTarget(x);
         g_nYForce = CoordToForce( y );
 
         InvalidateRect( hDlg, 0, TRUE );
-        UpdateWindow( hDlg );
-
-        if( FAILED( hr = SetDeviceForcesXY() ) )
-            return hr;
+        //UpdateWindow( hDlg );
     }
 
     return S_OK;
@@ -524,6 +574,27 @@ INT CoordToForce( INT nCoord )
     return nForce;
 }
 
+//-----------------------------------------------------------------------------
+// Name: CoordToTarget()
+// Desc: Convert a coordinate 0 <= nCoord <= FEEDBACK_WINDOW_WIDTH 
+//       to a force value in the range -MAX_LOC_VALUE to +MAX_LOC_VALUE.
+//-----------------------------------------------------------------------------
+INT CoordToTarget(INT nCoord)
+{
+	INT nForce = MulDiv(nCoord, 2 * MAX_LOC_VALUE, FEEDBACK_WINDOW_WIDTH)
+		- MAX_LOC_VALUE;
+
+	// Keep force within bounds
+	if (nForce < -MAX_LOC_VALUE)
+		nForce = -MAX_LOC_VALUE;
+
+	if (nForce > +MAX_LOC_VALUE)
+		nForce = +MAX_LOC_VALUE;
+
+	return nForce;
+}
+
+
 
 
 
@@ -533,25 +604,52 @@ INT CoordToForce( INT nCoord )
 //-----------------------------------------------------------------------------
 HRESULT SetDeviceForcesXY()
 {
+	static float integral=0;
+	static int preError = 0;
     // Modifying an effect is basically the same as creating a new one, except
     // you need only specify the parameters you are modifying
     LONG rglDirection[2] = { 0, 0 };
+	INT Force = g_nXForce;
+	const float Dt = 33.3;
+	const float K = 0.01;
+	const INT MaxForce = MAX_FORCE / 2;
 
     DICONSTANTFORCE cf;
+	g_WheelChangeThreshold = 0;
+	int distance = g_WheelTargetPosition - g_WheelPositon;
+	if (abs(distance) > g_WheelChangeThreshold) {
+		if (distance < 0)
+			Force = distance * ((MaxForce / 3000)) - 1900;
+		if (distance > 0)
+			Force = distance * ((MaxForce / 3000)) + 1900;
+		integral = integral + (distance * Dt);
+		float derivative = (distance - preError) / Dt;
+		//Force = (K * distance) + (K * integral)  + (K * derivative);
+		Force = -Force;
+		if (Force > MaxForce)
+			Force = MaxForce;
+		if (Force < -MaxForce)
+			Force = -MaxForce;
+	}
+	else {
+		Force = 0;
+	}
+
+	//Force = Compute() * MAX_FORCE / 100;
 
     if( g_dwNumForceFeedbackAxis == 1 )
     {
         // If only one force feedback axis, then apply only one direction and 
         // keep the direction at zero
-        cf.lMagnitude = -g_nXForce;
+        cf.lMagnitude = Force;
         rglDirection[0] = 0;
     }
     else
     {
         // If two force feedback axis, then apply magnitude from both directions 
-        rglDirection[0] = -g_nXForce;
+        rglDirection[0] = Force;
         rglDirection[1] = g_nYForce;
-        cf.lMagnitude = ( DWORD )sqrt( ( double )g_nXForce * ( double )g_nXForce +
+        cf.lMagnitude = ( DWORD )sqrt( ( double )Force * ( double )Force +
                                        ( double )g_nYForce * ( double )g_nYForce );
     }
 
@@ -573,4 +671,105 @@ HRESULT SetDeviceForcesXY()
 }
 
 
+//-----------------------------------------------------------------------------
+// Name: UpdateInputState()
+// Desc: Get the input device's state and display it.
+//-----------------------------------------------------------------------------
+HRESULT UpdateInputState(HWND hDlg)
+{
+	HRESULT hr;
+	DIJOYSTATE2 js, js_o, js2, js2_o;           // DInput joystick state 
+	DICONDITION cond;
 
+	//cond.lOffset = g_wheel_center;
+	//cond.lPositiveCoefficient = g_wheel_friction;
+	//cond.lNegativeCoefficient = g_wheel_friction;
+	//cond.dwPositiveSaturation = 10000;
+	//cond.dwNegativeSaturation = 10000;
+
+	if (!g_pDevice)
+		return S_OK;
+
+	// Poll the device to read the current state
+	hr = g_pDevice->Poll();
+	if (FAILED(hr))
+	{
+		// DInput is telling us that the input stream has been
+		// interrupted. We aren't tracking any state between polls, so
+		// we don't have any special reset that needs to be done. We
+		// just re-acquire and try again.
+		hr = g_pDevice->Acquire();
+		while (hr == DIERR_INPUTLOST)
+			hr = g_pDevice->Acquire();
+
+		// hr may be DIERR_OTHERAPPHASPRIO or other errors.  This
+		// may occur when the app is minimized or in the process of 
+		// switching, so just try again later 
+		return S_OK;
+	}
+
+	// Get the input's device state
+	if (FAILED(hr = g_pDevice->GetDeviceState(sizeof(DIJOYSTATE2), &js)))
+		return hr; // The device should have been acquired during the Poll()
+
+	g_WheelPositon = js.lX;
+
+	// Axes
+	_stprintf_s(g_strText, 512, TEXT("%ld"), g_WheelPositon);
+	SetWindowText(GetDlgItem(hDlg, IDC_X_AXIS), g_strText);
+
+	_stprintf_s(g_strText, 512, TEXT("%ld"), g_WheelTargetPosition);
+	SetWindowText(GetDlgItem(hDlg, IDC_X_AXIS_TARGET), g_strText);
+
+	SetDeviceForcesXY();
+	return S_OK;
+}
+
+unsigned long millis() {
+	SYSTEMTIME st;
+	unsigned long time;
+	GetLocalTime(&st);
+	time = st.wMilliseconds;
+	return time;
+}
+
+DWORD Compute()
+{
+	unsigned long now = millis();
+	int timeChange = (now - lastTime);
+	if (timeChange >= SampleTime)
+	{
+		/*Compute all the working error variables*/
+		double error = g_WheelTargetPosition - g_WheelPositon;
+		errSum += error;
+		double dErr = (error - lastErr);
+
+		/*Compute PID Output*/
+		Output = kp * error + ki * errSum + kd * dErr;
+
+		/*Remember some variables for next time*/
+		lastErr = error;
+		lastTime = now;
+	}
+	return Output;
+}
+
+void SetTunings(double Kp, double Ki, double Kd)
+{
+	double SampleTimeInSec = ((double)SampleTime) / 1000;
+	kp = Kp;
+	ki = Ki * SampleTimeInSec;
+	kd = Kd / SampleTimeInSec;
+}
+
+void SetSampleTime(int NewSampleTime)
+{
+	if (NewSampleTime > 0)
+	{
+		double ratio = (double)NewSampleTime
+			/ (double)SampleTime;
+		ki *= ratio;
+		kd /= ratio;
+		SampleTime = (unsigned long)NewSampleTime;
+	}
+}

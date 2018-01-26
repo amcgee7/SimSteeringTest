@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -7,38 +7,34 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include <windows.h>
-#define IDC_STATIC -1
+#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_FORCE_FEEDBACK DIALOG DISCARDABLE  0, 0, 162, 188
-STYLE DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+IDD_FORCE_FEEDBACK DIALOGEX 0, 0, 162, 188
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Force Feedback Constant Force Sample"
-FONT 8, "MS Shell Dlg"
+FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "Exit",IDCANCEL,97,167,50,14
-    LTEXT           "Click the mouse inside the square below to",IDC_STATIC,
-                    7,7,135,8
-    LTEXT           "set the strength and direction of the force ",
-                    IDC_STATIC,7,15,132,8
+    LTEXT           "Click the mouse inside the square below to",IDC_STATIC,7,7,135,8
+    LTEXT           "set the strength and direction of the force ",IDC_STATIC,7,15,132,8
     LTEXT           "feedback effect. ",IDC_STATIC,7,23,55,8
+    LTEXT           "Static",IDC_X_AXIS,14,166,19,8
+    LTEXT           "Static",IDC_X_AXIS_TARGET,14,177,19,8
 END
 
 
@@ -48,14 +44,10 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO
 BEGIN
-    IDD_JOY_FEEDBACK, DIALOG
+    IDD_FORCE_FEEDBACK, DIALOG
     BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 155
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 181
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -67,18 +59,18 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE 
 BEGIN
     "\r\n"
     "\0"
@@ -94,8 +86,20 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_MAIN                ICON    DISCARDABLE     "directx.ico"
-#endif    // English (U.S.) resources
+IDI_MAIN                ICON                    "directx.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_FORCE_FEEDBACK AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
